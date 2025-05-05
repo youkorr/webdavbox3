@@ -747,7 +747,7 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
         setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt));
         
         // Augmenter considérablement la taille du tampon d'envoi pour les gros fichiers
-        int send_buf = 256 * 1024;  // 128KB pour maximiser le débit
+        int send_buf = 256 * 1024;  // 256KB pour maximiser le débit
         setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &send_buf, sizeof(send_buf));
         
         // Timeouts beaucoup plus longs pour les gros fichiers
@@ -789,23 +789,40 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
     
     ESP_LOGI(TAG, "Envoi du fichier %s (%zu octets, type: %s)", path.c_str(), (size_t)st.st_size, content_type);
     
-    // Ne pas utiliser la stratégie de chargement complet du fichier pour les fichiers volumineux
-    // car cela peut causer des problèmes de mémoire sur l'ESP32
-    
-    // Stratégie optimisée pour les fichiers volumineux
-    const size_t CHUNK_SIZE = (st.st_size > 300 * 1024 * 1024) ? 32768 : 
-                             (st.st_size > 50 * 1024 * 1024) ? 16384 : 8192;
+    // Stratégie optimisée pour les fichiers volumineux - utiliser des buffer plus grands grâce à la PSRAM
+    // Utiliser la PSRAM si disponible pour allouer de grands buffers
+    const size_t CHUNK_SIZE = (st.st_size > 300 * 1024 * 1024) ? 262144 :  // 256K pour très grands fichiers 
+                             (st.st_size > 50 * 1024 * 1024) ? 131072 :   // 128K pour grands fichiers
+                             65536;                                       // 64K pour fichiers moyens/petits
     
     ESP_LOGI(TAG, "Utilisation d'un buffer de taille %zu pour un fichier de %zu octets", 
              CHUNK_SIZE, (size_t)st.st_size);
     
-    char *buffer = (char*)malloc(CHUNK_SIZE);
+    // Vérifier si la PSRAM est disponible
+    bool using_psram = false;
+    char *buffer = nullptr;
+    
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > CHUNK_SIZE) {
+        // Utiliser la PSRAM pour le buffer
+        buffer = (char*)heap_caps_malloc(CHUNK_SIZE, MALLOC_CAP_SPIRAM);
+        using_psram = true;
+        ESP_LOGI(TAG, "Buffer alloué en PSRAM");
+    } else {
+        // Fallback sur la mémoire interne
+        buffer = (char*)heap_caps_malloc(CHUNK_SIZE, MALLOC_CAP_8BIT);
+        ESP_LOGW(TAG, "PSRAM non disponible ou insuffisante, utilisation de la mémoire interne");
+    }
     
     if (!buffer) {
         ESP_LOGE(TAG, "Impossible d'allouer le buffer pour l'envoi");
         fclose(file);
         return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Server Error");
     }
+    
+    // Afficher les infos mémoire avant le transfert
+    ESP_LOGI(TAG, "Mémoire avant transfert - Heap interne: %zu, PSRAM: %zu", 
+        heap_caps_get_free_size(MALLOC_CAP_INTERNAL), 
+        heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
     
     // Optimisation: positionnez le fichier au début pour garantir un départ frais
     fseek(file, 0, SEEK_SET);
@@ -843,32 +860,32 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
                     speed_kbps);
             
             last_log_time = current_time;
-            
-            // Pauses moins fréquentes et plus courtes pour les gros fichiers
-            if (!is_large_file) {
-                vTaskDelay(pdMS_TO_TICKS(1));  // Pause très courte (1ms) seulement pour petits fichiers
-            }
         }
         
-        // Pour les très gros fichiers (>300MB), pause minimale seulement tous les 5MB
-        if (st.st_size > 300 * 1024 * 1024 && total_sent % (5 * 1024 * 1024) == 0) {
+        // Pour les très gros fichiers (>300MB), pause minimale seulement tous les 10MB
+        if (st.st_size > 300 * 1024 * 1024 && total_sent % (10 * 1024 * 1024) == 0) {
             taskYIELD();  // Cède juste le CPU sans délai
         }
     }
     
     // Libérer le buffer
-    free(buffer);
+    heap_caps_free(buffer);
     fclose(file);
     
     unsigned long end_time = esp_timer_get_time() / 1000;
     float total_time = (end_time - start_time) / 1000.0f;
     float avg_speed = (total_sent / 1024.0f / 1024.0f) / total_time;  // MB/s
     
+    // Afficher les infos mémoire après le transfert
+    ESP_LOGI(TAG, "Mémoire après transfert - Heap interne: %zu, PSRAM: %zu", 
+        heap_caps_get_free_size(MALLOC_CAP_INTERNAL), 
+        heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    
     if (err == ESP_OK) {
         // Fermer la réponse avec un chunk vide
         err = httpd_resp_send_chunk(req, NULL, 0);
-        ESP_LOGI(TAG, "Fichier envoyé avec succès: %zu octets en %.2f secondes (%.2f MB/s)", 
-                total_sent, total_time, avg_speed);
+        ESP_LOGI(TAG, "Fichier envoyé avec succès: %zu octets en %.2f secondes (%.2f MB/s, buffer en %s)", 
+                total_sent, total_time, avg_speed, using_psram ? "PSRAM" : "RAM interne");
     } else {
         ESP_LOGE(TAG, "Erreur lors de l'envoi du fichier: %d (total envoyé: %zu/%zu octets, %.2f MB/s)",
                 err, total_sent, (size_t)st.st_size, avg_speed);
@@ -876,6 +893,7 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
     
     return err;
 }
+
 float WebDAVBox3::benchmark_sd_read(const std::string &filepath) {
     FILE *file = fopen(filepath.c_str(), "rb");
     if (!file) {
@@ -883,8 +901,24 @@ float WebDAVBox3::benchmark_sd_read(const std::string &filepath) {
         return 0.0;
     }
 
-    const size_t CHUNK = 8192;
-    char *buf = (char*)malloc(CHUNK);
+    // Utiliser un buffer plus grand grâce à la PSRAM
+    const size_t CHUNK = 65536;  // 64K au lieu de 8K
+    
+    // Essayer d'allouer en PSRAM d'abord
+    char *buf = NULL;
+    bool using_psram = false;
+    
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > CHUNK) {
+        buf = (char*)heap_caps_malloc(CHUNK, MALLOC_CAP_SPIRAM);
+        using_psram = true;
+    }
+    
+    // Si pas de PSRAM disponible, fallback sur la mémoire interne
+    if (!buf) {
+        buf = (char*)heap_caps_malloc(CHUNK, MALLOC_CAP_8BIT);
+        using_psram = false;
+    }
+    
     if (!buf) {
         fclose(file);
         ESP_LOGE(TAG, "Erreur allocation mémoire");
@@ -900,16 +934,16 @@ float WebDAVBox3::benchmark_sd_read(const std::string &filepath) {
     }
 
     unsigned long end = esp_timer_get_time();
-    free(buf);
+    heap_caps_free(buf);
     fclose(file);
 
     float elapsed = (end - start) / 1e6f;
     float mbps = (total / 1024.0f / 1024.0f) / elapsed;
 
-    ESP_LOGI(TAG, "Benchmark SD: %.2f MB lus en %.2f s (%.2f MB/s)", total / 1048576.0f, elapsed, mbps);
+    ESP_LOGI(TAG, "Benchmark SD: %.2f MB lus en %.2f s (%.2f MB/s) avec buffer en %s", 
+             total / 1048576.0f, elapsed, mbps, using_psram ? "PSRAM" : "RAM interne");
     return mbps;
 }
-
 esp_err_t WebDAVBox3::handle_webdav_get_small_file(httpd_req_t *req, const std::string &path, size_t file_size) {
     // Cette méthode est pour les fichiers jusqu'à 8MB
     const size_t MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 Mo
