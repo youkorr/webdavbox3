@@ -88,7 +88,7 @@ void SdMmc::setup() {
   esp_vfs_fat_sdmmc_mount_config_t mount_config = {
     .format_if_mount_failed = false,
     .max_files = 16,
-    .allocation_unit_size = 64 * 1024  // 64KB optimise l'écriture des fichiers
+    .allocation_unit_size = 256 * 1024  // 64KB optimise l'écriture des fichiers
   };
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
   host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;  // 50MHz
@@ -430,7 +430,7 @@ void SdMmc::read_file_stream(const char *path, size_t offset, size_t chunk_size,
     callback(buffer.data(), read);
     bytes_since_reset += read;
 
-    if (bytes_since_reset >= 32 * 1024) {
+    if (bytes_since_reset >= 64 * 1024) {
       esp_task_wdt_reset();
       bytes_since_reset = 0;
     }
