@@ -2,6 +2,9 @@
 #include "esp_task_wdt.h"
 #include "esp_heap_caps.h"
 #include "esp_psram.h"
+#include "esp_timer.h"     // Pour esp_timer_get_time()
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"  // Pour vTaskDelay
 
 #include <algorithm>
 #include <vector>
@@ -47,9 +50,9 @@ FileSizeSensor::FileSizeSensor(sensor::Sensor *sensor, std::string const &path) 
 void SdMmc::loop() {
   // Mise à jour périodique des capteurs (possible toutes les X secondes)
   static uint32_t last_update = 0;
-  if (millis() - last_update > 30000) {  // Mise à jour toutes les 30 secondes
+  if ((esp_timer_get_time() / 1000) - last_update > 30000) {  // Mise à jour toutes les 30 secondes
     this->update_sensors();
-    last_update = millis();
+    last_update = esp_timer_get_time() / 1000;
   }
 }
 
@@ -113,7 +116,7 @@ void SdMmc::setup() {
   if (this->power_ctrl_pin_ != nullptr) {
     this->power_ctrl_pin_->setup();
     this->power_ctrl_pin_->digital_write(true);  // Activer l'alimentation
-    delay(100);  // Attendre la stabilisation
+    vTaskDelay(pdMS_TO_TICKS(100));  // Attendre la stabilisation
   }
   
   // Configuration optimisée
@@ -161,9 +164,9 @@ void SdMmc::setup() {
     // Réinitialiser l'alimentation entre les tentatives si nous avons un pin de contrôle
     if (attempt > 1 && this->power_ctrl_pin_ != nullptr) {
       this->power_ctrl_pin_->digital_write(false);
-      delay(100);
+      vTaskDelay(pdMS_TO_TICKS(100));
       this->power_ctrl_pin_->digital_write(true);
-      delay(200);  // Attendre que la carte se stabilise
+      vTaskDelay(pdMS_TO_TICKS(200));  // Attendre que la carte se stabilise
     }
     
     ret = esp_vfs_fat_sdmmc_mount(MOUNT_POINT.c_str(), &host, &slot_config, &mount_config, &this->card_);
@@ -259,7 +262,7 @@ void SdMmc::write_file_chunked(const char *path, const uint8_t *buffer, size_t l
   }
 
   size_t written = 0;
-  uint32_t start_time = millis();
+  uint32_t start_time = esp_timer_get_time() / 1000;
   
   while (written < len) {
     size_t to_write = std::min(optimal_chunk_size, len - written);
@@ -280,7 +283,7 @@ void SdMmc::write_file_chunked(const char *path, const uint8_t *buffer, size_t l
       // Log progress for large files
       if (len > 10 * 1024 * 1024) {  // 10MB
         float progress = (float)written / len * 100.0f;
-        float speed_kbps = written / (float)(millis() - start_time) * 1000.0f / 1024.0f;
+        float speed_kbps = written / (float)((esp_timer_get_time() / 1000) - start_time) * 1000.0f / 1024.0f;
         ESP_LOGI(TAG, "Writing progress: %.1f%% (%.2f KB/s)", progress, speed_kbps);
       }
       
@@ -290,7 +293,7 @@ void SdMmc::write_file_chunked(const char *path, const uint8_t *buffer, size_t l
   }
   
   // Log final statistics
-  uint32_t elapsed_time = millis() - start_time;
+  uint32_t elapsed_time = (esp_timer_get_time() / 1000) - start_time;
   float speed_kbps = written / (float)elapsed_time * 1000.0f / 1024.0f;
   ESP_LOGI(TAG, "File write complete: %zu bytes in %u ms (%.2f KB/s)", 
            written, elapsed_time, speed_kbps);
@@ -362,7 +365,7 @@ std::vector<FileInfo> &SdMmc::list_directory_file_info_rec(const char *path, uin
   struct dirent *entry;
   
   uint32_t entry_count = 0;
-  uint32_t start_time = millis();
+  uint32_t start_time = esp_timer_get_time() / 1000;
   
   while ((entry = readdir(dir)) != nullptr) {
     entry_count++;
@@ -393,7 +396,7 @@ std::vector<FileInfo> &SdMmc::list_directory_file_info_rec(const char *path, uin
   closedir(dir);
   
   if (entry_count > 100) {  // Log seulement pour les grands répertoires
-    ESP_LOGI(TAG, "Listed %u entries in %u ms", entry_count, millis() - start_time);
+    ESP_LOGI(TAG, "Listed %u entries in %u ms", entry_count, (esp_timer_get_time() / 1000) - start_time);
   }
   
   return list;
@@ -602,9 +605,8 @@ void SdMmc::read_file_stream(const char *path, size_t offset, size_t chunk_size,
     ESP_LOGE(TAG, "Error reading file: %s", absolut_path.c_str());
   }
 }
-
-
 #endif
+
 size_t SdMmc::file_size(std::string const &path) { return this->file_size(path.c_str()); }
 
 bool SdMmc::is_directory(std::string const &path) { return this->is_directory(path.c_str()); }
@@ -661,3 +663,4 @@ FileInfo::FileInfo(std::string const &path, size_t size, bool is_directory)
 
 }  // namespace sd_mmc_card
 }  // namespace esphome
+
