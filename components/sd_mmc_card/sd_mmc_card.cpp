@@ -88,7 +88,7 @@ void SdMmc::setup() {
   esp_vfs_fat_sdmmc_mount_config_t mount_config = {
     .format_if_mount_failed = false,
     .max_files = 16,
-    .allocation_unit_size = 512 * 1024  // 64KB optimise l'écriture des fichiers
+    .allocation_unit_size = 256 * 1024  // 64KB optimise l'écriture des fichiers
   };
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
   host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;  // 50MHz
