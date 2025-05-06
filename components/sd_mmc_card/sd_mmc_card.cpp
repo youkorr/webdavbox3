@@ -384,26 +384,38 @@ bool SdMmc::delete_file(const char *path) {
 std::vector<uint8_t> SdMmc::read_file(const char *path) {
   ESP_LOGV(TAG, "Read File: %s", path);
 
-  std::string absolut_path = build_path(path);
-  FILE *file = fopen(absolut_path.c_str(), "rb");
-  if (file == nullptr) {
-    ESP_LOGE(TAG, "Failed to open file for reading: %s", absolut_path.c_str());
+  // Vérifier d'abord la taille du fichier
+  size_t file_size = this->file_size(path);
+  
+  // Limite de sécurité, par exemple 5MB
+  constexpr size_t MAX_SAFE_SIZE = 5 * 1024 * 1024;
+  
+  if (file_size > MAX_SAFE_SIZE) {
+    ESP_LOGE(TAG, "File too large for direct reading: %zu bytes (max: %zu). Use read_file_stream instead.", 
+             file_size, MAX_SAFE_SIZE);
     return {};
   }
 
-  std::unique_ptr<FILE, decltype(&fclose)> file_guard(file, fclose);
-  size_t file_size = this->file_size(path);
+  std::string absolut_path = build_path(path);
+  FILE *file = fopen(absolut_path.c_str(), "rb");
+  if (file == nullptr) {
+    ESP_LOGE(TAG, "Failed to open file for reading");
+    return {};
+  }
 
   std::vector<uint8_t> res(file_size);
   size_t read_len = fread(res.data(), 1, file_size, file);
+  fclose(file);
 
   if (read_len != file_size) {
-    ESP_LOGE(TAG, "Read incomplete: expected %zu bytes, got %zu (%s)", file_size, read_len, strerror(errno));
+    ESP_LOGE(TAG, "Read incomplete: expected %zu bytes, got %zu", file_size, read_len);
     return {};
   }
 
   return res;
 }
+
+
 
 // Lecture en streaming par chunks avec reset du WDT
 void SdMmc::read_file_stream(const char *path, size_t offset, size_t chunk_size,
