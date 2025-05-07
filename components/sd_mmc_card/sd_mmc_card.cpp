@@ -91,8 +91,8 @@ void SdMmc::setup() {
     .allocation_unit_size = 256 * 1024  // 64KB optimise l'écriture des fichiers
   };
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-  //host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;  // 50MHz
-  host.max_freq_khz = 60000; // ou 50000
+  host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;  // 50MHz
+  //host.max_freq_khz = 60000; // ou 50000
 
   
   // Dans les versions récentes d'ESP-IDF, DMA est généralement activé par défaut
