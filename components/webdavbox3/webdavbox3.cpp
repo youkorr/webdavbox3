@@ -172,10 +172,10 @@ void WebDAVBox3::configure_http_server() {
     config.max_uri_handlers = 16;
     
     // Paramètres de performance
-    config.stack_size = 16384;
+    config.stack_size = 32768;
     config.core_id = tskNO_AFFINITY;
     //config.core_id = 0;  // Fixer sur le premier cœur
-    config.task_priority = tskIDLE_PRIORITY + 5;  // Priorité plus élevée
+    config.task_priority = tskIDLE_PRIORITY + 10;  // Priorité plus élevée
     
     // Paramètres de délai et taille
     config.lru_purge_enable = true;
