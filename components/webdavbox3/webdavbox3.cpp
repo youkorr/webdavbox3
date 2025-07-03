@@ -1,5 +1,6 @@
 #include "webdavbox3.h"
 #include "esphome/core/log.h"
+#include "esphome/core/hal.h"  // Pour millis()
 #include "esp_task_wdt.h"
 #include <sys/stat.h>
 #include <dirent.h>
@@ -138,7 +139,7 @@ void WebDAVBox3::setup() {
 void WebDAVBox3::loop() {
     // Monitoring léger de la mémoire
     static uint32_t last_check = 0;
-    uint32_t now = millis();
+    uint32_t now = millis();  // Utilisation correcte de esphome::millis()
     
     if (now - last_check > 30000) { // Toutes les 30 secondes
         size_t free_internal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
@@ -472,7 +473,17 @@ esp_err_t WebDAVBox3::handle_root(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// Méthode publique pour CORS (garde la compatibilité)
 void WebDAVBox3::add_cors_headers(httpd_req_t *req) {
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", 
+                      "GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", 
+                      "Authorization, Content-Type, Depth, Destination, Overwrite, Range");
+}
+
+// Méthode statique pour CORS (pour les handlers statiques)
+void WebDAVBox3::add_cors_headers_static(httpd_req_t *req) {
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", 
                       "GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, OPTIONS");
@@ -484,7 +495,7 @@ esp_err_t WebDAVBox3::handle_webdav_options(httpd_req_t *req) {
     ESP_LOGI(TAG, "OPTIONS %s", req->uri);
     
     // En-têtes CORS complets
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     httpd_resp_set_hdr(req, "Access-Control-Max-Age", "3600");
     
     // En-têtes WebDAV standards
@@ -497,7 +508,7 @@ esp_err_t WebDAVBox3::handle_webdav_options(httpd_req_t *req) {
     return httpd_resp_sendstr(req, "");
 }
 
-// NOUVEAU: Gestionnaire pour les Range Requests (streaming audio)
+// Gestionnaire pour les Range Requests (streaming audio)
 esp_err_t WebDAVBox3::handle_range_request(httpd_req_t *req, const std::string &path, size_t file_size) {
     char range_header[128] = {0};
     if (httpd_req_get_hdr_value_str(req, "Range", range_header, sizeof(range_header)) != ESP_OK) {
@@ -560,7 +571,7 @@ esp_err_t WebDAVBox3::handle_range_request(httpd_req_t *req, const std::string &
     httpd_resp_set_hdr(req, "Content-Range", content_range);
     
     // CORS pour streaming
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     
     // Ouvrir et positionner le fichier
     FILE *file = fopen(path.c_str(), "rb");
@@ -612,8 +623,6 @@ esp_err_t WebDAVBox3::handle_range_request(httpd_req_t *req, const std::string &
         
         remaining -= read_bytes;
         sent += read_bytes;
-        
-        // Pas de délai pour le streaming
     }
     
     // Terminer la réponse
@@ -650,7 +659,7 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
         return handle_webdav_propfind(req);
     }
     
-    // *** NOUVEAU: Support des Range Requests pour streaming audio ***
+    // *** Support des Range Requests pour streaming audio ***
     if (handle_range_request(req, path, st.st_size) == ESP_OK) {
         return ESP_OK;
     }
@@ -671,13 +680,13 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
         timeout.tv_usec = 0;
         setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         
-        // Désactiver Nagle pour améliorer la latence  
+        // Désactiver Nagle 
         opt = 1;
         setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
     }
     
     // Headers optimisés
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     httpd_resp_set_hdr(req, "Accept-Ranges", "bytes");
     httpd_resp_set_hdr(req, "Content-Length", std::to_string(st.st_size).c_str());
     httpd_resp_set_hdr(req, "Cache-Control", "max-age=3600");
@@ -785,7 +794,7 @@ esp_err_t WebDAVBox3::handle_webdav_get(httpd_req_t *req) {
             last_log_time = current_time;
         }
         
-        // Yield CPU seulement pour très gros fichiers et éviter les timeouts
+        // Yield CPU seulement pour très gros fichiers
         if (is_large_file && (total_sent % (2 * 1024 * 1024)) == 0) {
             taskYIELD();
         }
@@ -860,7 +869,7 @@ float WebDAVBox3::benchmark_sd_read(const std::string &filepath) {
     return mbps;
 }
 
-// ========== AUTRES HANDLERS (inchangés mais avec logs améliorés) ==========
+// ========== AUTRES HANDLERS (avec corrections CORS) ==========
 
 esp_err_t WebDAVBox3::handle_webdav_propfind(httpd_req_t *req) {
     auto *inst = static_cast<WebDAVBox3 *>(req->user_ctx);
@@ -919,7 +928,7 @@ esp_err_t WebDAVBox3::handle_webdav_propfind(httpd_req_t *req) {
     response += "</D:multistatus>";
     
     httpd_resp_set_type(req, "application/xml; charset=utf-8");
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     httpd_resp_set_status(req, "207 Multi-Status");
     
     httpd_resp_send(req, response.c_str(), response.length());
@@ -1012,7 +1021,7 @@ esp_err_t WebDAVBox3::handle_webdav_put(httpd_req_t *req) {
     fclose(file);
     ESP_LOGI(TAG, "✅ Upload terminé: %s (%d octets)", path.c_str(), total_received);
 
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     httpd_resp_set_hdr(req, "DAV", "1,2");
     httpd_resp_set_type(req, "text/plain");
     httpd_resp_set_status(req, total_received > 0 ? "201 Created" : "200 OK");
@@ -1063,7 +1072,7 @@ esp_err_t WebDAVBox3::handle_webdav_mkcol(httpd_req_t *req) {
     
     ESP_LOGI(TAG, "✅ Dossier créé: %s", path.c_str());
     
-    add_cors_headers(req);
+    add_cors_headers_static(req);
     httpd_resp_set_status(req, "201 Created");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
@@ -1214,6 +1223,7 @@ esp_err_t WebDAVBox3::handle_webdav_proppatch(httpd_req_t *req) {
 
 }  // namespace webdavbox3
 }  // namespace esphome
+
 
 
 
