@@ -28,7 +28,6 @@ class WebDAVBox3 : public Component {
   void register_handlers();
   float benchmark_sd_read(const std::string &filepath);
   
-  
   bool mount_sd_card();  // Ajout de ta fonction publique
 
  protected:
@@ -73,11 +72,18 @@ class WebDAVBox3 : public Component {
   static esp_err_t handle_post(httpd_req_t *req);
   static bool create_directories(const std::string& path);
   
+  // *** NOUVELLES MÉTHODES AJOUTÉES ***
+  // Range Requests pour le streaming audio
+  static esp_err_t handle_range_request(httpd_req_t *req, const std::string &path, size_t file_size);
+  
   // Helper methods
   static std::string get_file_path(httpd_req_t *req, const std::string &root_path);
   static bool is_dir(const std::string &path);
   static std::vector<std::string> list_dir(const std::string &path);
   static std::string generate_prop_xml(const std::string &href, bool is_directory, time_t modified, size_t size);
+  
+  // *** MÉTHODE CORS DÉPLACÉE DANS STATIC ***
+  static void add_cors_headers_static(httpd_req_t *req);
 };
 
 }  // namespace webdavbox3
