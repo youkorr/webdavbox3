@@ -6,22 +6,16 @@ from esphome.const import (
     CONF_DATA,
     CONF_PATH,
     CONF_CLK_PIN,
-    CONF_INPUT,
-    CONF_OUTPUT,
-    CONF_PULLUP,
-    CONF_PULLDOWN,
+    CONF_CMD_PIN,
+    CONF_DATA0_PIN,
+    CONF_DATA1_PIN,
+    CONF_DATA2_PIN,
+    CONF_DATA3_PIN,
+    CONF_MODE_1BIT,
+    CONF_POWER_CTRL_PIN,
 )
-from esphome.core import CORE
 
-CONF_SD_MMC_CARD_ID = "sd_mmc_card_id"
-CONF_CMD_PIN = "cmd_pin"
-CONF_DATA0_PIN = "data0_pin"
-CONF_DATA1_PIN = "data1_pin"
-CONF_DATA2_PIN = "data2_pin"
-CONF_DATA3_PIN = "data3_pin"
-CONF_MODE_1BIT = "mode_1bit"
-CONF_POWER_CTRL_PIN = "power_ctrl_pin"
-
+# Namespace
 sd_mmc_card_component_ns = cg.esphome_ns.namespace("sd_mmc_card")
 SdMmc = sd_mmc_card_component_ns.class_("SdMmc", cg.Component)
 
@@ -32,6 +26,7 @@ SdMmcCreateDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcCreateDirecto
 SdMmcRemoveDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcRemoveDirectoryAction", automation.Action)
 SdMmcDeleteFileAction = sd_mmc_card_component_ns.class_("SdMmcDeleteFileAction", automation.Action)
 
+# Valide les données brutes
 def validate_raw_data(value):
     if isinstance(value, str):
         return value.encode("utf-8")
@@ -44,15 +39,15 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(SdMmc),
         cv.Required(CONF_CLK_PIN): pins.internal_gpio_output_pin_number,
         cv.Required(CONF_CMD_PIN): pins.internal_gpio_output_pin_number,
-        cv.Required(CONF_DATA0_PIN): pins.internal_gpio_input_output_pin_number,
-        cv.Optional(CONF_DATA1_PIN): pins.internal_gpio_input_output_pin_number,
-        cv.Optional(CONF_DATA2_PIN): pins.internal_gpio_input_output_pin_number,
-        cv.Optional(CONF_DATA3_PIN): pins.internal_gpio_input_output_pin_number,
+        cv.Required(CONF_DATA0_PIN): cv.int_,  # Remplacé car l'ancien attribut a été supprimé
+        cv.Optional(CONF_DATA1_PIN): cv.int_,
+        cv.Optional(CONF_DATA2_PIN): cv.int_,
+        cv.Optional(CONF_DATA3_PIN): cv.int_,
         cv.Optional(CONF_MODE_1BIT, default=False): cv.boolean,
         cv.Optional(CONF_POWER_CTRL_PIN): pins.gpio_pin_schema({
-            CONF_OUTPUT: True,
-            CONF_PULLUP: False,
-            CONF_PULLDOWN: False,
+            "output": True,
+            "pullup": False,
+            "pulldown": False,
         }),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -78,6 +73,7 @@ async def to_code(config):
         power_ctrl = await cg.gpio_pin_expression(config[CONF_POWER_CTRL_PIN])
         cg.add(var.set_power_ctrl_pin(power_ctrl))
 
+# Schemas d'actions
 SD_MMC_PATH_ACTION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(SdMmc),
@@ -85,13 +81,11 @@ SD_MMC_PATH_ACTION_SCHEMA = cv.Schema(
     }
 )
 
-SD_MMC_WRITE_FILE_ACTION_SCHEMA = cv.Schema(
+SD_MMC_WRITE_FILE_ACTION_SCHEMA = SD_MMC_PATH_ACTION_SCHEMA.extend(
     {
-        cv.GenerateID(): cv.use_id(SdMmc),
-        cv.Required(CONF_PATH): cv.templatable(cv.string_strict),
         cv.Required(CONF_DATA): cv.templatable(validate_raw_data),
     }
-).extend(SD_MMC_PATH_ACTION_SCHEMA)
+)
 
 @automation.register_action(
     "sd_mmc_card.write_file", SdMmcWriteFileAction, SD_MMC_WRITE_FILE_ACTION_SCHEMA
@@ -99,10 +93,10 @@ SD_MMC_WRITE_FILE_ACTION_SCHEMA = cv.Schema(
 async def sd_mmc_write_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-    data_ = await cg.templatable(config[CONF_DATA], args, cg.std_vector.template(cg.uint8))
-    cg.add(var.set_path(path_))
-    cg.add(var.set_data(data_))
+    path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
+    data = await cg.templatable(config[CONF_DATA], args, cg.std_vector.template(cg.uint8))
+    cg.add(var.set_path(path))
+    cg.add(var.set_data(data))
     return var
 
 @automation.register_action(
@@ -111,10 +105,10 @@ async def sd_mmc_write_file_to_code(config, action_id, template_arg, args):
 async def sd_mmc_append_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-    data_ = await cg.templatable(config[CONF_DATA], args, cg.std_vector.template(cg.uint8))
-    cg.add(var.set_path(path_))
-    cg.add(var.set_data(data_))
+    path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
+    data = await cg.templatable(config[CONF_DATA], args, cg.std_vector.template(cg.uint8))
+    cg.add(var.set_path(path))
+    cg.add(var.set_data(data))
     return var
 
 @automation.register_action(
@@ -123,8 +117,8 @@ async def sd_mmc_append_file_to_code(config, action_id, template_arg, args):
 async def sd_mmc_create_directory_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-    cg.add(var.set_path(path_))
+    path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
+    cg.add(var.set_path(path))
     return var
 
 @automation.register_action(
@@ -133,8 +127,8 @@ async def sd_mmc_create_directory_to_code(config, action_id, template_arg, args)
 async def sd_mmc_remove_directory_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-    cg.add(var.set_path(path_))
+    path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
+    cg.add(var.set_path(path))
     return var
 
 @automation.register_action(
@@ -143,7 +137,8 @@ async def sd_mmc_remove_directory_to_code(config, action_id, template_arg, args)
 async def sd_mmc_delete_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    path_ = await cg.templatable(config[CONF_PATH], args, cg.std_string)
-    cg.add(var.set_path(path_))
+    path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
+    cg.add(var.set_path(path))
     return var
+
 
