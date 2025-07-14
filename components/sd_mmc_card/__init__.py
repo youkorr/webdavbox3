@@ -3,43 +3,43 @@ import esphome.config_validation as cv
 from esphome import automation, pins
 from esphome.const import (
     CONF_ID,
-    CONF_DATA,
     CONF_PATH,
-    CONF_CLK_PIN,
-    CONF_CMD_PIN,
-    CONF_DATA0_PIN,
-    CONF_DATA1_PIN,
-    CONF_DATA2_PIN,
-    CONF_DATA3_PIN,
-    CONF_MODE_1BIT,
-    CONF_POWER_CTRL_PIN,
+    CONF_DATA,
 )
 
-# Namespace
+# Valeurs littérales à la place des anciennes constantes supprimées
+CONF_CLK_PIN = "clk_pin"
+CONF_CMD_PIN = "cmd_pin"
+CONF_DATA0_PIN = "data0_pin"
+CONF_DATA1_PIN = "data1_pin"
+CONF_DATA2_PIN = "data2_pin"
+CONF_DATA3_PIN = "data3_pin"
+CONF_MODE_1BIT = "mode_1bit"
+CONF_POWER_CTRL_PIN = "power_ctrl_pin"
+
+# Namespace et classes
 sd_mmc_card_component_ns = cg.esphome_ns.namespace("sd_mmc_card")
 SdMmc = sd_mmc_card_component_ns.class_("SdMmc", cg.Component)
 
-# Actions
 SdMmcWriteFileAction = sd_mmc_card_component_ns.class_("SdMmcWriteFileAction", automation.Action)
 SdMmcAppendFileAction = sd_mmc_card_component_ns.class_("SdMmcAppendFileAction", automation.Action)
 SdMmcCreateDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcCreateDirectoryAction", automation.Action)
 SdMmcRemoveDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcRemoveDirectoryAction", automation.Action)
 SdMmcDeleteFileAction = sd_mmc_card_component_ns.class_("SdMmcDeleteFileAction", automation.Action)
 
-# Valide les données brutes
 def validate_raw_data(value):
     if isinstance(value, str):
         return value.encode("utf-8")
     if isinstance(value, list):
         return cv.Schema([cv.hex_uint8_t])(value)
-    raise cv.Invalid("data must either be a string wrapped in quotes or a list of bytes")
+    raise cv.Invalid("data must either be a string or a list of bytes")
 
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(SdMmc),
         cv.Required(CONF_CLK_PIN): pins.internal_gpio_output_pin_number,
         cv.Required(CONF_CMD_PIN): pins.internal_gpio_output_pin_number,
-        cv.Required(CONF_DATA0_PIN): cv.int_,  # Remplacé car l'ancien attribut a été supprimé
+        cv.Required(CONF_DATA0_PIN): cv.int_,
         cv.Optional(CONF_DATA1_PIN): cv.int_,
         cv.Optional(CONF_DATA2_PIN): cv.int_,
         cv.Optional(CONF_DATA3_PIN): cv.int_,
@@ -73,7 +73,6 @@ async def to_code(config):
         power_ctrl = await cg.gpio_pin_expression(config[CONF_POWER_CTRL_PIN])
         cg.add(var.set_power_ctrl_pin(power_ctrl))
 
-# Schemas d'actions
 SD_MMC_PATH_ACTION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(SdMmc),
@@ -140,5 +139,6 @@ async def sd_mmc_delete_file_to_code(config, action_id, template_arg, args):
     path = await cg.templatable(config[CONF_PATH], args, cg.std_string)
     cg.add(var.set_path(path))
     return var
+
 
 
