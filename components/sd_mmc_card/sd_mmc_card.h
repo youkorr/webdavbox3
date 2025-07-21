@@ -89,6 +89,8 @@ class SdMmc : public Component {
   void set_mode_1bit(bool);
   void set_power_ctrl_pin(GPIOPin *);
 
+  void set_slot(uint8_t slot) { this->slot_ = slot; }
+
  protected:
   ErrorCode init_error_;
   uint8_t clk_pin_;
@@ -99,6 +101,8 @@ class SdMmc : public Component {
   uint8_t data3_pin_;
   bool mode_1bit_;
   GPIOPin *power_ctrl_pin_{nullptr};
+
+  uint8_t slot_ = 0;  // Par défaut slot 0
 
 #ifdef USE_ESP_IDF
   sdmmc_card_t *card_;
