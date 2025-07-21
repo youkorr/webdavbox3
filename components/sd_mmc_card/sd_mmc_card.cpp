@@ -39,6 +39,7 @@ void SdMmc::loop() {}
 void SdMmc::dump_config() {
   ESP_LOGCONFIG(TAG, "SD MMC Component");
   ESP_LOGCONFIG(TAG, "  Mode 1 bit: %s", TRUEFALSE(this->mode_1bit_));
+  ESP_LOGCONFIG(TAG, "  Slot: %d", this->slot_); 
   ESP_LOGCONFIG(TAG, "  CLK Pin: %d", this->clk_pin_);
   ESP_LOGCONFIG(TAG, "  CMD Pin: %d", this->cmd_pin_);
   ESP_LOGCONFIG(TAG, "  DATA0 Pin: %d", this->data0_pin_);
