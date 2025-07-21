@@ -10,6 +10,7 @@ from esphome.const import (
     CONF_OUTPUT,
     CONF_PULLUP,
     CONF_PULLDOWN,
+    CONF_SLOT = "slot"
 )
 from esphome.core import CORE
 
@@ -53,7 +54,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_DATA3_PIN): pins.internal_gpio_pin_number,
         cv.Optional(CONF_MODE_1BIT, default=False): cv.boolean,
         cv.Optional(CONF_POWER_CTRL_PIN) : pins.gpio_pin_schema({
-        cg.add(var.set_slot(config[CONF_SLOT]))     
+        cv.Optional(CONF_SLOT, default=0): cv.int_range(min=0, max=1) 
             CONF_OUTPUT: True,
             CONF_PULLUP: False,
             CONF_PULLDOWN: False,
@@ -67,6 +68,7 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     cg.add(var.set_mode_1bit(config[CONF_MODE_1BIT]))
+    cg.add(var.set_slot(config[CONF_SLOT])) 
 
     cg.add(var.set_clk_pin(config[CONF_CLK_PIN]))
     cg.add(var.set_cmd_pin(config[CONF_CMD_PIN]))
