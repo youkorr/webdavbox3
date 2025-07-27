@@ -13,6 +13,8 @@ from esphome.const import (
 )
 from esphome.core import CORE
 
+CODEOWNERS = ["@youkorr"]
+
 CONF_SD_MMC_CARD_ID = "sd_mmc_card_id"
 CONF_CMD_PIN = "cmd_pin"
 CONF_DATA0_PIN = "data0_pin"
