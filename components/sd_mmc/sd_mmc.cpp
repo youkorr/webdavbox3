@@ -501,7 +501,7 @@ long double convertBytes(uint64_t value, MemoryUnits unit) {
 FileInfo::FileInfo(std::string const &path, size_t size, bool is_directory)
     : path(path), size(size), is_directory(is_directory) {}
 
-}  // namespace sd_mmc_card
+}  // namespace sd_mmc
 }  // namespace esphome
 
 
