@@ -4,7 +4,7 @@ from esphome.components import text_sensor
 from esphome.const import (
     ENTITY_CATEGORY_DIAGNOSTIC,
 )
-from . import SdMmc, CONF_SD_MMC_CARD_ID
+from . import SdMmc, CONF_SD_MMC_ID
 
 DEPENDENCIES = ["sd_mmc"]
 
@@ -18,8 +18,8 @@ CONFIG_SCHEMA = {
 }
 
 async def to_code(config):
-    sd_mmc_component = await cg.get_variable(config[CONF_SD_MMC_CARD_ID])
+    sd_mmc_component = await cg.get_variable(config[CONF_SD_MMC_ID])
 
     if CONF_SD_CARD_TYPE in config:
-        sens = await text_sensor.new_text_sensor(config[CONF_SD_CARD_TYPE])
+        sens = await text_sensor.new_text_sensor(config[CONF_SD_TYPE])
         cg.add(sd_mmc_component.set_sd_card_type_text_sensor(sens))
