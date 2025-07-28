@@ -9,7 +9,7 @@ from esphome.const import (
 )
 from . import (
     SdMmc,
-    CONF_SD_MMC_CARD_ID,
+    CONF_SD_MMC_ID,
     CONF_PATH,
 )
 
