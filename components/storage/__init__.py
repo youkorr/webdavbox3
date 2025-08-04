@@ -6,7 +6,7 @@ from esphome.const import CONF_ID
 from esphome.components import storage as base_storage
 
 # Import des constantes et classes du composant sd_mmc
-from ..sd_mmc import CONF_SD_MMC_CARD_ID as CONF_SD_MMC_ID, SdMmc, sd_mmc_ns
+from ..sd_mmc import CONF_SD_MMC_ID, SdMmc, sd_mmc_ns
 
 # Dépendances explicites
 DEPENDENCIES = ["sd_mmc", "storage"]
