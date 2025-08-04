@@ -1,26 +1,39 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
-from ..sd_mmc import CONF_SD_MMC_ID, SdMmc, sd_mmc_ns
+from esphome.const import CONF_ID, CONF_PLATFORM
+from esphome.core import CORE
 
-DEPENDENCIES = ["sd_mmc"]
+CODEOWNERS = ["@youkorr"]
 
-# Define the storage schema directly instead of importing
-CONF_STORAGE_ID = "storage_id"
+# Define the base storage namespace
+storage_ns = cg.esphome_ns.namespace("storage")
+Storage = storage_ns.class_("Storage", cg.Component)
 
-sd_mmc_storage = sd_mmc_ns.class_("SD_MMC_Storage", cg.Component)
+# Configuration constants
+CONF_PATH_PREFIX = "path_prefix"
 
-CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(sd_mmc_storage),
-        cv.Required(CONF_SD_MMC_ID): cv.use_id(SdMmc),
-    }
-).extend(cv.COMPONENT_SCHEMA)
+def storage_schema(storage_class):
+    """Create a storage schema for a specific storage implementation"""
+    return cv.Schema({
+        cv.GenerateID(): cv.declare_id(storage_class),
+        cv.Optional(CONF_PATH_PREFIX, default=""): cv.string,
+    }).extend(cv.COMPONENT_SCHEMA)
 
-async def to_code(config):
+# Base schema for storage components
+BASE_STORAGE_SCHEMA = cv.Schema({
+    cv.Required(CONF_PLATFORM): cv.string,
+}).extend(cv.COMPONENT_SCHEMA)
+
+# This will be extended by platform-specific schemas
+CONFIG_SCHEMA = cv.All(BASE_STORAGE_SCHEMA)
+
+async def storage_to_code(config):
+    """Base storage setup code"""
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     
-    sd_mmc_component = await cg.get_variable(config[CONF_SD_MMC_ID])
-    cg.add(var.set_sd_mmc(sd_mmc_component))
+    if CONF_PATH_PREFIX in config:
+        cg.add(var.set_path_prefix(config[CONF_PATH_PREFIX]))
+    
+    return var
 
