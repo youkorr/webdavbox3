@@ -19,9 +19,9 @@ int constexpr SD_OCR_SDHC_CAP = (1 << 30);  // value defined in esp-idf/componen
 #endif
 
 namespace esphome {
-namespace sd_mmc_card {
+namespace sd_mmc {
 
-static const char *TAG = "sd_mmc_card";
+static const char *TAG = "sd_mmc";
 
 #ifdef USE_ESP_IDF
 static constexpr size_t FILE_PATH_MAX = ESP_VFS_PATH_MAX + CONFIG_SPIFFS_OBJ_NAME_LEN;
@@ -501,7 +501,7 @@ long double convertBytes(uint64_t value, MemoryUnits unit) {
 FileInfo::FileInfo(std::string const &path, size_t size, bool is_directory)
     : path(path), size(size), is_directory(is_directory) {}
 
-}  // namespace sd_mmc_card
+}  // namespace sd_mmc
 }  // namespace esphome
 
 
