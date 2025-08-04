@@ -23,12 +23,12 @@ CONF_DATA2_PIN = "data2_pin"
 CONF_DATA3_PIN = "data3_pin"
 CONF_MODE_1BIT = "mode_1bit"
 CONF_POWER_CTRL_PIN = "power_ctrl_pin"
-CONF_SLOT = "slot"  # Ajouté ici avec les autres constantes
+CONF_SLOT = "slot"
 
 sd_mmc_ns = cg.esphome_ns.namespace("sd_mmc")
 SdMmc = sd_mmc_ns.class_("SdMmc", cg.Component)
 
-# Action
+# Actions
 SdMmcWriteFileAction = sd_mmc_ns.class_("SdMmcWriteFileAction", automation.Action)
 SdMmcAppendFileAction = sd_mmc_ns.class_("SdMmcAppendFileAction", automation.Action)
 SdMmcCreateDirectoryAction = sd_mmc_ns.class_("SdMmcCreateDirectoryAction", automation.Action)
@@ -49,13 +49,12 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(SdMmc),
         cv.Required(CONF_CLK_PIN): pins.internal_gpio_output_pin_number,
         cv.Required(CONF_CMD_PIN): pins.internal_gpio_output_pin_number,
-        # FIX: Utiliser pins.internal_gpio_pin_number sans paramètres
         cv.Required(CONF_DATA0_PIN): pins.internal_gpio_pin_number,
         cv.Optional(CONF_DATA1_PIN): pins.internal_gpio_pin_number,
         cv.Optional(CONF_DATA2_PIN): pins.internal_gpio_pin_number,
         cv.Optional(CONF_DATA3_PIN): pins.internal_gpio_pin_number,
         cv.Optional(CONF_MODE_1BIT, default=False): cv.boolean,
-        cv.Optional(CONF_SLOT, default=0): cv.int_range(min=0, max=1),  # Ajout du slot
+        cv.Optional(CONF_SLOT, default=0): cv.int_range(min=0, max=1),
         cv.Optional(CONF_POWER_CTRL_PIN): pins.gpio_pin_schema({
             CONF_OUTPUT: True,
             CONF_PULLUP: False,
@@ -64,28 +63,42 @@ CONFIG_SCHEMA = cv.Schema(
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
+def validate_4bit_pins(config):
+    """Validate that if not in 1-bit mode, all data pins are specified"""
+    if not config[CONF_MODE_1BIT]:
+        required_pins = [CONF_DATA1_PIN, CONF_DATA2_PIN, CONF_DATA3_PIN]
+        for pin_conf in required_pins:
+            if pin_conf not in config:
+                raise cv.Invalid(f"{pin_conf} is required when mode_1bit is False")
+    return config
+
+CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, validate_4bit_pins)
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
+    # Set basic configuration
     cg.add(var.set_mode_1bit(config[CONF_MODE_1BIT]))
-    cg.add(var.set_slot(config[CONF_SLOT]))  # Ajout de la configuration du slot
+    cg.add(var.set_slot(config[CONF_SLOT]))
 
+    # Set pin configurations
     cg.add(var.set_clk_pin(config[CONF_CLK_PIN]))
     cg.add(var.set_cmd_pin(config[CONF_CMD_PIN]))
     cg.add(var.set_data0_pin(config[CONF_DATA0_PIN]))
 
-    if (config[CONF_MODE_1BIT] == False):
+    # Set additional data pins only if not in 1-bit mode
+    if not config[CONF_MODE_1BIT]:
         cg.add(var.set_data1_pin(config[CONF_DATA1_PIN]))
         cg.add(var.set_data2_pin(config[CONF_DATA2_PIN]))
         cg.add(var.set_data3_pin(config[CONF_DATA3_PIN]))
 
-    if (CONF_POWER_CTRL_PIN in config):
+    # Set power control pin if specified
+    if CONF_POWER_CTRL_PIN in config:
         power_ctrl = await cg.gpio_pin_expression(config[CONF_POWER_CTRL_PIN])
         cg.add(var.set_power_ctrl_pin(power_ctrl))
 
-
+# Action schemas
 SD_MMC_PATH_ACTION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(SdMmc),
@@ -99,10 +112,10 @@ SD_MMC_WRITE_FILE_ACTION_SCHEMA = cv.Schema(
         cv.Required(CONF_PATH): cv.templatable(cv.string_strict),
         cv.Required(CONF_DATA): cv.templatable(validate_raw_data),
     }
-).extend(SD_MMC_PATH_ACTION_SCHEMA)
+)
 
 @automation.register_action(
-    "sd_mmc_card.write_file", SdMmcWriteFileAction, SD_MMC_WRITE_FILE_ACTION_SCHEMA
+    "sd_mmc.write_file", SdMmcWriteFileAction, SD_MMC_WRITE_FILE_ACTION_SCHEMA
 )
 async def sd_mmc_write_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
@@ -113,9 +126,8 @@ async def sd_mmc_write_file_to_code(config, action_id, template_arg, args):
     cg.add(var.set_data(data_))
     return var
 
-
 @automation.register_action(
-    "sd_mmc_card.append_file", SdMmcAppendFileAction, SD_MMC_WRITE_FILE_ACTION_SCHEMA
+    "sd_mmc.append_file", SdMmcAppendFileAction, SD_MMC_WRITE_FILE_ACTION_SCHEMA
 )
 async def sd_mmc_append_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
@@ -126,9 +138,8 @@ async def sd_mmc_append_file_to_code(config, action_id, template_arg, args):
     cg.add(var.set_data(data_))
     return var
 
-
 @automation.register_action(
-    "sd_mmc_card.create_directory", SdMmcCreateDirectoryAction, SD_MMC_PATH_ACTION_SCHEMA
+    "sd_mmc.create_directory", SdMmcCreateDirectoryAction, SD_MMC_PATH_ACTION_SCHEMA
 )
 async def sd_mmc_create_directory_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
@@ -137,9 +148,8 @@ async def sd_mmc_create_directory_to_code(config, action_id, template_arg, args)
     cg.add(var.set_path(path_))
     return var
 
-
 @automation.register_action(
-    "sd_mmc_card.remove_directory", SdMmcRemoveDirectoryAction, SD_MMC_PATH_ACTION_SCHEMA
+    "sd_mmc.remove_directory", SdMmcRemoveDirectoryAction, SD_MMC_PATH_ACTION_SCHEMA
 )
 async def sd_mmc_remove_directory_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
@@ -148,9 +158,8 @@ async def sd_mmc_remove_directory_to_code(config, action_id, template_arg, args)
     cg.add(var.set_path(path_))
     return var
 
-
 @automation.register_action(
-    "sd_mmc_card.delete_file", SdMmcDeleteFileAction, SD_MMC_PATH_ACTION_SCHEMA
+    "sd_mmc.delete_file", SdMmcDeleteFileAction, SD_MMC_PATH_ACTION_SCHEMA
 )
 async def sd_mmc_delete_file_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
