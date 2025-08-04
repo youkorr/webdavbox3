@@ -15,7 +15,7 @@ from esphome.core import CORE
 
 CODEOWNERS = ["@youkorr"]
 
-CONF_SD_MMC_CARD_ID = "sd_mmc_card_id"
+CONF_SD_MMC_CARD_ID = "sd_mmc_id"
 CONF_CMD_PIN = "cmd_pin"
 CONF_DATA0_PIN = "data0_pin"
 CONF_DATA1_PIN = "data1_pin"
@@ -25,15 +25,15 @@ CONF_MODE_1BIT = "mode_1bit"
 CONF_POWER_CTRL_PIN = "power_ctrl_pin"
 CONF_SLOT = "slot"  # Ajouté ici avec les autres constantes
 
-sd_mmc_card_component_ns = cg.esphome_ns.namespace("sd_mmc_card")
-SdMmc = sd_mmc_card_component_ns.class_("SdMmc", cg.Component)
+sd_mmc_ns = cg.esphome_ns.namespace("sd_mmc")
+SdMmc = sd_mmc_ns.class_("SdMmc", cg.Component)
 
 # Action
-SdMmcWriteFileAction = sd_mmc_card_component_ns.class_("SdMmcWriteFileAction", automation.Action)
-SdMmcAppendFileAction = sd_mmc_card_component_ns.class_("SdMmcAppendFileAction", automation.Action)
-SdMmcCreateDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcCreateDirectoryAction", automation.Action)
-SdMmcRemoveDirectoryAction = sd_mmc_card_component_ns.class_("SdMmcRemoveDirectoryAction", automation.Action)
-SdMmcDeleteFileAction = sd_mmc_card_component_ns.class_("SdMmcDeleteFileAction", automation.Action)
+SdMmcWriteFileAction = sd_mmc_ns.class_("SdMmcWriteFileAction", automation.Action)
+SdMmcAppendFileAction = sd_mmc_ns.class_("SdMmcAppendFileAction", automation.Action)
+SdMmcCreateDirectoryAction = sd_mmc_ns.class_("SdMmcCreateDirectoryAction", automation.Action)
+SdMmcRemoveDirectoryAction = sd_mmc_ns.class_("SdMmcRemoveDirectoryAction", automation.Action)
+SdMmcDeleteFileAction = sd_mmc_ns.class_("SdMmcDeleteFileAction", automation.Action)
 
 def validate_raw_data(value):
     if isinstance(value, str):
