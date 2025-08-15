@@ -1,6 +1,6 @@
 # WEBDAV ,SD_CARD
 
-SD MMC cards components for esphome.and webdav
+SD MMC cards components for esphome.and webdav for esp32P4 Tab5 m5stack
 ```
 ## Config
 
@@ -25,20 +25,6 @@ esp32:
       HAS_ESP32_P4_CAMERA: "y"
       CONFIG_CAMERA_MODULE_ENABLED: "y"
   
-
-"important"  ESP-IDF Framework
-By default long file name are not enabled, to change this behaviour CONFIG_FATFS_LFN_STACK or CONFIG_FATFS_LFN_HEAP should be set in the framework configuration. See the Espressif documentation for more detail.
-
-sd_mmc_card:
-  id: sd_mmc_card
-  mode_1bit: false
-  clk_pin: GPIO14
-  cmd_pin: GPIO15
-  data0_pin: GPIO2
-  data1_pin: GPIO4
-  data2_pin: GPIO12
-  data3_pin: GPIO13
-  power_ctrl_pin: GPIO43  # Optionnel : GPIO pour contrôler l'alimentation de la carte SD
 ```
 
 * **mode_1bit** (Optional, bool): spécifie si le mode 1 bit ou 4 bits est utilisé
@@ -52,7 +38,7 @@ sd_mmc_card:
 
 
 
-Sample configuration for the Tab5 m6stack:
+Sample configuration for the  esp32P4 Tab5 m5stack:
 ```yaml
 sd_mmc_card:
   id: sd_card
