@@ -6,16 +6,25 @@ SD MMC cards components for esphome.and webdav
 
 ```yaml
 esp32:
-  board: esp32-s3-devkitc-1
+  board: esp32-p4-evboard
+  cpu_frequency: 360MHz
   flash_size: 16MB
   framework:
     type: esp-idf
-    version: recommended
+    version: 5.4.2
+    platform_version: 54.03.21
+    advanced:
+      enable_idf_experimental_features: yes
     sdkconfig_options:
-      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
-      CONFIG_FATFS_LFN_HEAP: "y"    
+      CONFIG_SPIRAM_RODATA: y
+      CONFIG_FATFS_LFN_STACK: "y"
+      CONFIG_LWIP_SO_RCVBUF: "y"
+      CONFIG_LWIP_MAX_SOCKETS: "16"
+      # Options expérimentales ou spécifiques au ESP32-P4
+      CONFIG_IDF_TARGET_ESP32P4: "y"
+      HAS_ESP32_P4_CAMERA: "y"
+      CONFIG_CAMERA_MODULE_ENABLED: "y"
+  
 
 "important"  ESP-IDF Framework
 By default long file name are not enabled, to change this behaviour CONFIG_FATFS_LFN_STACK or CONFIG_FATFS_LFN_HEAP should be set in the framework configuration. See the Espressif documentation for more detail.
@@ -39,19 +48,22 @@ sd_mmc_card:
 * **data1_pin**: (Optional, GPIO): broche de données 1, utilisée uniquement en mode 4 bits
 * **data2_pin**: (Optional, GPIO): broche de données 2, utilisée uniquement en mode 4 bits
 * **data3_pin**: (Optional, GPIO): broche de données 3, utilisée uniquement en mode 4 bits
-* **power_ctrl_pin**: (Optional, GPIO): broche pour contrôler l'alimentation de la carte SD (par exemple, GPIO43 pour l'ESP32-S3-Box-3)
+* **slot**: 
 
-### Power Control (PWR_CTRL)
 
-For devices like the ESP32-S3-Box-3, you can use the `power_ctrl_pin` to enable or disable SD card power. For example, on the ESP32-S3-Box-3, GPIO43 is often used to control power to the SD card reader.
 
-Sample configuration for the ESP32-S3-Box-3:
+Sample configuration for the Tab5 m6stack:
 ```yaml
 sd_mmc_card:
-  clk_pin: GPIO14
-  cmd_pin: GPIO15
-  data0_pin: GPIO2
-  power_ctrl_pin: GPIO43  # Active l'alimentation du lecteur de carte SD
+  id: sd_card
+  clk_pin: GPIO43
+  cmd_pin: GPIO44
+  data0_pin: GPIO39
+  data1_pin: GPIO40
+  data2_pin: GPIO41
+  data3_pin: GPIO42
+  mode_1bit: false
+  slot: 0   
 ``` yaml
 webdavbox3:
   id: sd_cards
