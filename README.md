@@ -59,4 +59,17 @@ webdavbox3:
   username: ""
   password: ""
 
+storage:
+    platform: sd_direct
+    id: my_storage
+    sd_component: sd_card
+    root_path: "/sdcard" 
+    sd_images:
+      - id: testree
+        file_path: "/img/sanctuary.jpg"
+        resize: 1280x720
+        format: rgb565
+        byte_order: little_endian 
+        auto_load: true
+
 ```
