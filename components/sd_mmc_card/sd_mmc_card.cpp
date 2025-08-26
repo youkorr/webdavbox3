@@ -86,7 +86,7 @@ void SdMmc::setup() {
     this->power_ctrl_pin_->setup();  // Configure GPIO45 en sortie
     this->power_ctrl_pin_->digital_write(true);  // Active l'alimentation (met GPIO45 à HIGH)
     ESP_LOGI(TAG, "Power control pin activated.");
-    delay(100);  // Attends un court instant pour stabiliser l'alimentation
+    vTaskDelay(pdMS_TO_TICKS(100));  // Attends 100 ms pour stabiliser l'alimentation
   } else {
     ESP_LOGW(TAG, "No power control pin defined. Ensure the SD card is always powered.");
   }
