@@ -67,7 +67,7 @@ CONFIG_SCHEMA = cv.Schema(
 if (this->power_ctrl_pin_) {
     this->power_ctrl_pin_->pin_mode(gpio::FLAG_OUTPUT);
     this->power_ctrl_pin_->digital_write(true);  // Active l'alimentation
-    delay(100);  // Attendez 100 ms pour stabiliser l'alimentation
+    
 }
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
