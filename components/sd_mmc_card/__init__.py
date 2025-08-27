@@ -64,11 +64,8 @@ CONFIG_SCHEMA = cv.Schema(
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
-if (this->power_ctrl_pin_) {
-    this->power_ctrl_pin_->pin_mode(gpio::FLAG_OUTPUT);
-    this->power_ctrl_pin_->digital_write(true); 
-    
-}
+
+
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
