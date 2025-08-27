@@ -66,7 +66,7 @@ CONFIG_SCHEMA = cv.Schema(
 
 if (this->power_ctrl_pin_) {
     this->power_ctrl_pin_->pin_mode(gpio::FLAG_OUTPUT);
-    this->power_ctrl_pin_->digital_write(true);  // Active l'alimentation
+    this->power_ctrl_pin_->digital_write(true); 
     
 }
 async def to_code(config):
